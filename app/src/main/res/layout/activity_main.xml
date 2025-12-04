@@ -1,16 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/mainLayout"
-    android:layout_width="match_parent"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout" android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".MainActivity">
 
     <TextView
         android:id="@+id/luxTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Luminosità: -- lux"
-        android:textSize="24sp"/>
-</LinearLayout>
+        android:textSize="28sp"
+        android:layout_marginBottom="32dp"/>
 
+    <Button
+        android:id="@+id/toggleTorchButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Attiva/Disattiva Torcia"
+        android:layout_marginBottom="16dp"/>
+
+    <Switch
+        android:id="@+id/manualModeSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Modalità Manuale Sfondo"
+        android:layout_marginTop="24dp"
+        android:checked="false"/>
+
+    <Button
+        android:id="@+id/changeBackgroundButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cambia Sfondo"
+        android:layout_marginTop="16dp"/>
+
+</LinearLayout>

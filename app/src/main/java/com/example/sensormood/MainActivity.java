@@ -16,7 +16,9 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,6 +32,8 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
@@ -46,36 +50,56 @@ public class MainActivity extends AppCompatActivity {
     private CameraManager cameraManager;
     private String cameraId;
     private boolean isTorchOn = false; // stato della torcia
+    private Button toggleTorchButton;
+    private Button changeBackgroundButton;
+    private int[] backgroundColors = {
+            Color.RED,
+            Color.BLUE,
+            Color.MAGENTA,
+            Color.CYAN,
+            Color.parseColor("#FF6600") // Arancione
+    };
+    private int currentColorIndex = 0;
+
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Collego l'activity al layout XML
         setContentView(R.layout.activity_main);
 
-        // Trovo il TextView dal layout
+        // Trova le View dal layout
         luxTextView = findViewById(R.id.luxTextView);
-
+        toggleTorchButton = findViewById(R.id.toggleTorchButton); // <-- NUOVO: Trova il pulsante!
+        changeBackgroundButton = findViewById(R.id.changeBackgroundButton);
         // Otteniamo il SensorManager dal sistema
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-
-        // Prendiamo il sensore di luce dal telefono
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
 
-        if (lightSensor != null) {
-            // Se il sensore esiste, registriamo il listener per leggere i valori
-            sensorManager.registerListener(lightListener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
-        } else {
-            // Se il telefono non ha il sensore di luce, mostriamo un messaggio
-            luxTextView.setText("Sensore di luce non disponibile!");
-        }
+        // Setup Camera Manager per la torcia (necessario per toggleTorch)
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
-            cameraId = cameraManager.getCameraIdList()[0]; // prendiamo la prima camera
+            // Ottieni l'ID della fotocamera posteriore (solitamente la prima)
+            cameraId = cameraManager.getCameraIdList()[0];
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
+
+        // --- COLLEGAMENTO MANUALE DEL PULSANTE TORCIA ---
+        // Questo permette all'utente di ACCENDERE/SPEGNERE la torcia manualmente
+        toggleTorchButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Se la torcia è spenta (false), chiamiamo toggleTorch(true) per accenderla, e viceversa.
+                toggleTorch(!isTorchOn);
+            }
+
+
+        });
+        changeBackgroundButton.setOnClickListener(v -> changeBackgroundManually());
+
+        // Nota: Il sensore viene registrato in onResume, non qui in onCreate.
+        // L'hai gestito correttamente nei tuoi metodi onResume e onPause!
     }
 
     // Listener che viene chiamato ogni volta che il sensore cambia valore
@@ -84,49 +108,45 @@ public class MainActivity extends AppCompatActivity {
         public void onSensorChanged(SensorEvent event) {
             float lux = event.values[0]; // valore del sensore
             String currentMode = "";
+            LinearLayout mainLayout = findViewById(R.id.rootLayout);
 
-            LinearLayout mainLayout = findViewById(R.id.mainLayout);
-
-            // Soglie per accendere/spegnere la torcia (hysteresis)
+            // Soglie (Mantenute così come sono, con OFF > ON)
             final float TORCH_ON_THRESHOLD = 40f;
             final float TORCH_OFF_THRESHOLD = 60f;
+
+            // --- GESTIONE TORCIA (CENTRALE) ---
+            // 1. Accendi la torcia se il Lux è basso E la torcia è spenta
+            if (lux < TORCH_ON_THRESHOLD && !isTorchOn) {
+                toggleTorch(true);
+            }
+            // 2. Spegni la torcia se il Lux è abbastanza alto E la torcia è accesa
+            else if (lux > TORCH_OFF_THRESHOLD && isTorchOn) {
+                toggleTorch(false);
+            }
+
+            // --- GESTIONE DELLE MODALITÀ SCHERMO (Separata dalla Torcia) ---
 
             // Modalità Notte
             if (lux < 50) {
                 currentMode = "Night";
-                setScreenBrightness(0.12f); // luminosità minima
+                setScreenBrightness(0.12f);
                 mainLayout.setBackgroundColor(Color.parseColor("#001F3F")); // blu scuro
-
-                // Torcia stabile
-                if (lux < TORCH_ON_THRESHOLD && !isTorchOn) {
-                    toggleTorch(true);
-                }
-
-                // Modalità Sole
-            } else if (lux > 10000) {
+            }
+            // Modalità Sole
+            else if (lux > 10000) {
                 currentMode = "Sun";
-                setScreenBrightness(1.0f); // luminosità massima
+                setScreenBrightness(1.0f);
                 mainLayout.setBackgroundColor(Color.parseColor("#FFDC00")); // giallo
-
-                // Spegni la torcia se accesa
-                if (isTorchOn && lux > TORCH_OFF_THRESHOLD) {
-                    toggleTorch(false);
-                }
-
-                // Modalità Focus
-            } else {
+            }
+            // Modalità Focus
+            else {
                 currentMode = "Focus";
-                setScreenBrightness(0.5f); // luminosità media
+                setScreenBrightness(0.5f);
                 mainLayout.setBackgroundColor(Color.parseColor("#2ECC40")); // verde
-
-                // Spegni la torcia se accesa
-                if (isTorchOn && lux > TORCH_OFF_THRESHOLD) {
-                    toggleTorch(false);
-                }
             }
 
             // Aggiorna TextView con modalità e valore lux
-            luxTextView.setText("Modalità: " + currentMode + "\nLuminosità: " + lux + " lux");
+            luxTextView.setText("Modalità: " + currentMode + "\nLuminosità: " + lux + " lux" + (isTorchOn ? "\nTORCIA ACCESA" : ""));
         }
 
 
@@ -134,7 +154,23 @@ public class MainActivity extends AppCompatActivity {
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
             // Non usiamo questa funzione per ora
         }
-    };
+    };private void changeBackgroundManually() {
+        LinearLayout mainLayout = findViewById(R.id.rootLayout);
+
+        // 1. Attiva la Modalità Manuale
+        boolean isManualMode = true;
+
+        // 2. Passa al colore successivo
+        currentColorIndex = (currentColorIndex + 1) % backgroundColors.length;
+        int nextColor = backgroundColors[currentColorIndex];
+
+        // 3. Applica il nuovo colore
+        mainLayout.setBackgroundColor(nextColor);
+
+        Toast.makeText(this, "Modalità Manuale Attivata", Toast.LENGTH_SHORT).show();
+    }
+    
+    
 
     @Override
     protected void onPause() {
