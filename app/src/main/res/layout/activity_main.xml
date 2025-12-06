@@ -2,41 +2,99 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/rootLayout" android:layout_width="match_parent"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
     android:orientation="vertical"
     android:padding="16dp"
+    android:gravity="center_horizontal"
+    android:background="#121212"
     tools:context=".MainActivity">
 
-    <TextView
-        android:id="@+id/luxTextView"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Luminosità: -- lux"
-        android:textSize="28sp"
-        android:layout_marginBottom="32dp"/>
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#222222"
+        android:layout_marginBottom="16dp">
 
-    <Button
-        android:id="@+id/toggleTorchButton"
-        android:layout_width="wrap_content"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ANALISI AMBIENTE LUCE"
+            android:textSize="14sp"
+            android:textColor="#00FFFF"
+            android:layout_marginBottom="8dp"
+            android:textStyle="bold"/>
+
+        <Spinner
+            android:id="@+id/scenarioSpinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:backgroundTint="#00FFFF"/>
+
+        <TextView
+            android:id="@+id/luxTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="LUX CORRENTE: --"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:padding="4dp"
+            android:gravity="center"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/diagnosisContainer"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Attiva/Disattiva Torcia"
-        android:layout_marginBottom="16dp"/>
+        android:orientation="vertical"
+        android:background="#333333"  android:padding="2dp"          android:layout_marginBottom="24dp">
 
-    <Switch
-        android:id="@+id/manualModeSwitch"
-        android:layout_width="wrap_content"
+        <TextView
+            android:id="@+id/diagnosisTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="DIAGNOSI: In attesa di dati..."
+            android:textSize="18sp"
+            android:gravity="center"
+            android:padding="13dp"
+            android:background="#1E1E1E" android:textColor="@android:color/white"
+            android:minLines="3"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Modalità Manuale Sfondo"
-        android:layout_marginTop="24dp"
-        android:checked="false"/>
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
 
-    <Button
-        android:id="@+id/changeBackgroundButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cambia Sfondo"
-        android:layout_marginTop="16dp"/>
+        <Button
+            android:id="@+id/goToGameButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🎮 MODALITÀ GIOCO (LUX TARGET)"
+            android:backgroundTint="#00FFFF"
+            android:textColor="#121212"
+            android:layout_marginBottom="12dp"/>
 
+        <Button
+            android:id="@+id/toggleTorchButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🔦 TORCIA AUSILIARIA ON"
+            android:backgroundTint="#FF6600" android:textColor="#FFFFFF"    android:layout_marginBottom="12dp"/>
+        <Button
+            android:id="@+id/requestPermissionButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="RICHIESTA ACCESSO SISTEMA (AUTO-LUX)"
+            android:backgroundTint="#C62828"
+            android:textColor="@android:color/white"
+            android:visibility="gone"
+            tools:visibility="visible"/>
+    </LinearLayout>
 </LinearLayout>

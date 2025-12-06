@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#303030"
+    tools:context="GameActivity">
+
+    <TextView
+        android:id="@+id/timerTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tempo: 0.0s"
+        android:textSize="24sp"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="16dp"/>
+
+    <TextView
+        android:id="@+id/targetLuxTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Target: --- lux"
+        android:textSize="48sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/holo_blue_light"
+        android:layout_marginBottom="40dp"/>
+
+    <TextView
+        android:id="@+id/currentLuxTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Lettura: 0.0 lux"
+        android:textSize="32sp"
+        android:textColor="@android:color/white"
+        android:layout_marginBottom="60dp"/>
+
+    <TextView
+        android:id="@+id/feedbackTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Premi START per iniziare!"
+        android:textSize="20sp"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:padding="10dp"
+        android:minLines="2"
+        android:layout_marginBottom="40dp"/>
+
+    <Button
+        android:id="@+id/startButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="START NUOVO ROUND"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"/>
+
+</LinearLayout>
