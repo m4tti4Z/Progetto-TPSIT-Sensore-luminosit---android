@@ -31,33 +31,33 @@ public class MainActivity extends AppCompatActivity {
 
     // --- Costanti e Codici di Richiesta ---
     private static final int REQUEST_CODE_WRITE_SETTINGS = 100;
+    private final float DIAGNOSIS_TOLERANCE = 5.0f;
 
-    // --- Componenti Android e Interfaccia Utente ---
-    private SensorManager sensorManager;
-    private Sensor lightSensor;
+    // --- Componenti UI ---
+    private LinearLayout mainLayout;
+    private LinearLayout diagnosisContainer;
     private TextView luxTextView;
     private TextView diagnosisTextView;
-    private LinearLayout mainLayout;
-    private LinearLayout diagnosisContainer; // Nuovo contenitore per il bordo di stato
     private Button toggleTorchButton;
     private Button requestPermissionButton;
     private Button goToGameButton;
     private Spinner scenarioSpinner;
 
-    // --- Gestione Stato ---
+    // --- Sensori ---
+    private SensorManager sensorManager;
+    private Sensor lightSensor;
+
+    // --- Stato ---
     private Scenario currentScenario = Scenario.LETTURA_RELAX;
     private boolean canWriteSettings = false;
     private boolean isTorchOn = false;
-
-    // **Variabili per Stabilità/Debouncing (Anti-Flickering)**
     private float lastLuxDiagnosed = -1;
-    private final float DIAGNOSIS_TOLERANCE = 5.0f;
 
-    // --- Gestione Torcia ---
+    // --- Torcia ---
     private CameraManager cameraManager;
     private String cameraId = null;
 
-    // Enum per definire gli scenari e i target Lux
+    // --- Enum Scenario ---
     private enum Scenario {
         STUDIO_INTENSO(450, 750, "Studio Intenso/Lavoro al PC"),
         LETTURA_RELAX(250, 400, "Lettura e Attività Generali"),
@@ -77,26 +77,44 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+    // -------------------------
+    // 1. Ciclo di vita - onCreate
+    // -------------------------
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // 1. Inizializzazione delle View
+        initializeUI();
+        initializeSensors();
+        initializeTorch();
+        setupSpinner();
+        setupListeners();
+
+        canWriteSettings = checkWriteSettingsPermission();
+        updatePermissionUI();
+    }
+
+    // -------------------------
+    // 2. Inizializzazione UI
+    // -------------------------
+    private void initializeUI() {
+        mainLayout = findViewById(R.id.rootLayout);
         luxTextView = findViewById(R.id.luxTextView);
         diagnosisTextView = findViewById(R.id.diagnosisTextView);
-        diagnosisContainer = findViewById(R.id.diagnosisContainer); // Inizializzazione del contenitore
+        diagnosisContainer = findViewById(R.id.diagnosisContainer);
         toggleTorchButton = findViewById(R.id.toggleTorchButton);
         requestPermissionButton = findViewById(R.id.requestPermissionButton);
         goToGameButton = findViewById(R.id.goToGameButton);
         scenarioSpinner = findViewById(R.id.scenarioSpinner);
-        mainLayout = findViewById(R.id.rootLayout);
+    }
 
-        // 2. Setup Sensore
+    // -------------------------
+    // 3. Inizializzazione Sensori
+    // -------------------------
+    private void initializeSensors() {
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-
         if (lightSensor == null) {
             Toast.makeText(this, "Sensore di Luce non disponibile.", Toast.LENGTH_LONG).show();
             luxTextView.setText("Errore: Sensore non trovato.");
@@ -104,8 +122,12 @@ public class MainActivity extends AppCompatActivity {
             requestPermissionButton.setEnabled(false);
             goToGameButton.setEnabled(false);
         }
+    }
 
-        // 3. Setup Torcia
+    // -------------------------
+    // 4. Inizializzazione Torcia
+    // -------------------------
+    private void initializeTorch() {
         cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             String[] cameraIds = cameraManager.getCameraIdList();
@@ -118,30 +140,21 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Torcia non supportata o accessibile.", Toast.LENGTH_SHORT).show();
             toggleTorchButton.setEnabled(false);
         }
-
-        // 4. Setup Spinner e Listeners
-        setupSpinner();
-        setupListeners();
-
-        // 5. Check iniziale permessi
-        canWriteSettings = checkWriteSettingsPermission();
-        updatePermissionUI();
     }
 
+    // -------------------------
+    // 5. Setup Spinner
+    // -------------------------
     private void setupSpinner() {
         String[] scenarioNames = new String[Scenario.values().length];
         for (int i = 0; i < Scenario.values().length; i++) {
             scenarioNames[i] = Scenario.values()[i].name;
         }
 
-        // 🌟 AGGIORNAMENTO: Usiamo il layout personalizzato per il testo Bianco
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                R.layout.spinner_item_white, // Layout per l'elemento visualizzato (chiuso)
+                R.layout.spinner_item_white,
                 scenarioNames);
-
-        // Layout personalizzato per la lista a discesa (dropdown)
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_white);
-
         scenarioSpinner.setAdapter(adapter);
 
         scenarioSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -150,138 +163,91 @@ public class MainActivity extends AppCompatActivity {
                 currentScenario = Scenario.values()[position];
             }
             @Override
-            public void onNothingSelected(AdapterView<?> parent) { }
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
+    // -------------------------
+    // 6. Setup Listeners Bottoni
+    // -------------------------
     private void setupListeners() {
         toggleTorchButton.setOnClickListener(v -> toggleTorch(!isTorchOn));
         requestPermissionButton.setOnClickListener(v -> requestWriteSettingsPermission());
-
-        // Listener per la Navigazione al Gioco
-        goToGameButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, GameActivity.class);
-                startActivity(intent);
-            }
+        goToGameButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, GameActivity.class);
+            startActivity(intent);
         });
     }
 
-    // --- Sensor Listener con Soglia di Aggiornamento ---
-    // --- Sensor Listener con Soglia di Aggiornamento ---
+    // -------------------------
+    // 7. SensorEventListener
+    // -------------------------
     private final SensorEventListener lightListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
             float lux = event.values[0];
 
-            // 🌟🌟🌟 1. LOGICA SFONDO DINAMICO (Dark/Tech Look) 🌟🌟🌟
-            // Normalizziamo il Lux: La transizione massima avviene fino a 2000 Lux
+            // Sfondo dinamico
             final float MAX_LUX_TRANSITION = 2000f;
-            float factor = Math.min(1f, lux / MAX_LUX_TRANSITION); // Fattore da 0.0 a 1.0
-
-            // Calcola il componente Blu/Grigio per un effetto Dark/Blue Technology
-            int blueComponent = (int) (30 + factor * 150); // Base 30, max 180
-            int grayComponent = (int) (18 + factor * 40);  // Base 18, max 58 (Base scura)
-
-            // Crea il colore RGB
+            float factor = Math.min(1f, lux / MAX_LUX_TRANSITION);
+            int blueComponent = (int) (30 + factor * 150);
+            int grayComponent = (int) (18 + factor * 40);
             int dynamicColor = Color.rgb(grayComponent, grayComponent, blueComponent);
-
-            // Applica il colore allo sfondo principale (aggiornamento fluido)
             mainLayout.setBackgroundColor(dynamicColor);
 
-
-            // 2. Aggiorna la TextView Lux in tempo reale
             luxTextView.setText(String.format("Luminosità Attuale: %.2f lux", lux));
 
-
-            // 3. Controllo di Stabilità (Debouncing - Anti-Flickering)
-            // Se Lux non è cambiato abbastanza (5 lux), evitiamo il costoso ricalcolo della diagnosi
             if (lastLuxDiagnosed != -1 && Math.abs(lux - lastLuxDiagnosed) < DIAGNOSIS_TOLERANCE) {
-                if (canWriteSettings) {
-                    float screenBrightness = Math.max(0.1f, Math.min(1.0f, lux / 1000f));
-                    setScreenBrightness(screenBrightness);
-                }
+                if (canWriteSettings) setScreenBrightness(Math.max(0.1f, Math.min(1.0f, lux / 1000f)));
                 return;
             }
-            // Aggiorna il valore di riferimento per la prossima volta
             lastLuxDiagnosed = lux;
 
+            String diagnosis = performLightDiagnosis(lux);
 
-            // 4. Esegue la diagnosi dell'ambiente (solo se necessario)
-            String diagnosis = performLightDiagnosis(lux); // Questo metodo contiene il random
+            if (canWriteSettings) setScreenBrightness(Math.max(0.1f, Math.min(1.0f, lux / 1000f)));
 
-            // 5. Regola la luminosità dello schermo (se i permessi sono OK)
-            if (canWriteSettings) {
-                float screenBrightness = Math.max(0.1f, Math.min(1.0f, lux / 1000f));
-                setScreenBrightness(screenBrightness);
-            }
-
-            // 6. Aggiorna UI
             String torchStatus = isTorchOn ? "✅ ON" : "❌ OFF";
             String autoBrightStatus = canWriteSettings ? "🔆 ON" : "🚫 OFF";
-
-            diagnosisTextView.setText(diagnosis);
-
-            // Aggiorna l'interfaccia con gli stati dei servizi
-            String servicesStatus = "Torcia: " + torchStatus + " | Auto-Luminosità: " + autoBrightStatus;
-            diagnosisTextView.append("\n\nStato Servizi: " + servicesStatus);
+            diagnosisTextView.setText(diagnosis + "\n\nStato Servizi: Torcia: " + torchStatus + " | Auto-Luminosità: " + autoBrightStatus);
         }
 
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     };
 
-    // Logica di Diagnosi dell'Ambiente (con varietà di testo e colore dinamico sul contenitore)
+    // -------------------------
+    // 8. Diagnosi Luce
+    // -------------------------
     private String performLightDiagnosis(float lux) {
         String baseMsg = "Scenario: " + currentScenario.name + "\n";
-        String recommendation;
         Random random = new Random();
-        int stateColor; // Colore per il bordo/highlight
+        String recommendation;
+        int stateColor;
 
         if (lux >= currentScenario.minLux && lux <= currentScenario.maxLux) {
-            // Caso OTTIMO
-            String[] ottime = {
-                    "🌟 Qualità della luce **eccellente**! Perfetta per la concentrazione.",
-                    "✅ Sei nell'intervallo ideale. **Ambiente visivo confortevole**.",
-                    "💡 Illuminazione equilibrata. La tua vista ti ringrazierà!"
-            };
+            String[] ottime = {"🌟 Qualità della luce eccellente!","✅ Ambiente visivo confortevole","💡 Illuminazione equilibrata"};
             recommendation = ottime[random.nextInt(ottime.length)];
-            stateColor = Color.parseColor("#4CAF50"); // Verde Scuro
-        }
-        else if (lux < currentScenario.minLux) {
-            // Caso INSUFFICIENTE
+            stateColor = Color.parseColor("#4CAF50");
+        } else if (lux < currentScenario.minLux) {
             float deficit = currentScenario.minLux - lux;
-            String[] suggerimenti = {
-                    "Luce non sufficiente! Ti mancano **" + String.format("%.0f", deficit) + " lux**.",
-                    "L'ambiente è troppo buio. Rischio di affaticamento visivo (**astenopia**).",
-                    "Ti servono fonti di luce aggiuntive. **Migliora subito** l'illuminazione!"
-            };
-            recommendation = suggerimenti[random.nextInt(suggerimenti.length)];
-            recommendation += "\n\nSuggerimento: Avvicina la fonte di luce o accendi la torcia ausiliaria 🔦.";
-            stateColor = Color.parseColor("#FF9800"); // Arancione
-        }
-        else {
-            // Caso ECCESSIVA
+            String[] suggerimenti = {"Luce insufficiente! Mancano " + String.format("%.0f", deficit) + " lux.","Ambiente troppo buio","Serve più illuminazione"};
+            recommendation = suggerimenti[random.nextInt(suggerimenti.length)] + "\n\nSuggerimento: Avvicina la luce o accendi la torcia 🔦.";
+            stateColor = Color.parseColor("#FF9800");
+        } else {
             float excess = lux - currentScenario.maxLux;
-            String[] eccessive = {
-                    "Luce troppo forte! Superi il target di **" + String.format("%.0f", excess) + " lux**.",
-                    "C'è un **eccesso di luminosità**. Potrebbe causare abbagliamento o riflessi.",
-                    "Attenzione! Troppa luce diretta. Potrebbe non essere confortevole."
-            };
-            recommendation = eccessive[random.nextInt(eccessive.length)];
-            recommendation += "\n\nSuggerimento: Chiudi le tende, sposta la postazione o riduci l'intensità delle lampade.";
-            stateColor = Color.parseColor("#F44336"); // Rosso
+            String[] eccessive = {"Troppa luce! Superi " + String.format("%.0f", excess) + " lux","Eccesso di luminosità","Potenziale abbagliamento"};
+            recommendation = eccessive[random.nextInt(eccessive.length)] + "\n\nSuggerimento: Riduci la luce.";
+            stateColor = Color.parseColor("#F44336");
         }
 
-        // **APPLICAZIONE DEI COLORI AL BORDO ESTERNO (Container)**
         diagnosisContainer.setBackgroundColor(stateColor);
-
         return baseMsg + "\n" + recommendation;
     }
 
-    // --- Gestione Permesso WRITE_SETTINGS ---
-
+    // -------------------------
+    // 9. Permessi WRITE_SETTINGS
+    // -------------------------
     private boolean checkWriteSettingsPermission() {
         return Settings.System.canWrite(this);
     }
@@ -292,35 +258,27 @@ public class MainActivity extends AppCompatActivity {
             intent.setData(Uri.parse("package:" + getPackageName()));
             startActivityForResult(intent, REQUEST_CODE_WRITE_SETTINGS);
         } else {
-            Toast.makeText(this, "Permesso Modifica Impostazioni già attivo.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Permesso già attivo.", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void updatePermissionUI() {
-        if (canWriteSettings) {
-            requestPermissionButton.setVisibility(View.GONE);
-        } else {
-            requestPermissionButton.setVisibility(View.VISIBLE);
-        }
+        requestPermissionButton.setVisibility(canWriteSettings ? View.GONE : View.VISIBLE);
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         if (requestCode == REQUEST_CODE_WRITE_SETTINGS) {
             canWriteSettings = Settings.System.canWrite(this);
             updatePermissionUI();
-            if (canWriteSettings) {
-                Toast.makeText(this, "Permesso Modifica Impostazioni Concesso.", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Permesso Negato. Luminosità automatica è disattivata.", Toast.LENGTH_LONG).show();
-            }
+            Toast.makeText(this, canWriteSettings ? "Permesso Concesso." : "Permesso Negato.", Toast.LENGTH_LONG).show();
         }
     }
 
-    // --- Metodi Helper ---
-
+    // -------------------------
+    // 10. Metodi Helper
+    // -------------------------
     private void setScreenBrightness(float brightness) {
         if (!canWriteSettings) return;
         try {
@@ -328,7 +286,7 @@ public class MainActivity extends AppCompatActivity {
             layoutParams.screenBrightness = brightness;
             getWindow().setAttributes(layoutParams);
         } catch (Exception e) {
-            Toast.makeText(this, "Errore: Impossibile cambiare luminosità schermo.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Errore: Impossibile cambiare luminosità.", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -340,26 +298,16 @@ public class MainActivity extends AppCompatActivity {
         try {
             cameraManager.setTorchMode(cameraId, state);
             isTorchOn = state;
-            toggleTorchButton.setText(isTorchOn ? "Torcia Ausiliaria OFF" : "Torcia Ausiliaria ON");
+            toggleTorchButton.setText(isTorchOn ? "Torcia OFF" : "Torcia ON");
         } catch (CameraAccessException e) {
             e.printStackTrace();
             Toast.makeText(this, "Errore Torcia: Riprovare.", Toast.LENGTH_SHORT).show();
         }
     }
 
-    // --- Gestione Ciclo di Vita ---
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (sensorManager != null && lightSensor != null) {
-            sensorManager.unregisterListener(lightListener);
-        }
-        if (isTorchOn) {
-            toggleTorch(false);
-        }
-    }
-
+    // -------------------------
+    // 11. Ciclo di vita Activity
+    // -------------------------
     @Override
     protected void onResume() {
         super.onResume();
@@ -368,5 +316,14 @@ public class MainActivity extends AppCompatActivity {
         }
         canWriteSettings = checkWriteSettingsPermission();
         updatePermissionUI();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (sensorManager != null && lightSensor != null) {
+            sensorManager.unregisterListener(lightListener);
+        }
+        if (isTorchOn) toggleTorch(false);
     }
 }

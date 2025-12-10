@@ -24,7 +24,6 @@ public class GameActivity extends AppCompatActivity {
     private SensorManager sensorManager;
     private Sensor lightSensor;
 
-    // 🌟🌟🌟 Aggiunte le dichiarazioni mancanti che causavano l'errore "Cannot resolve symbol" 🌟🌟🌟
     // --- UI Componenti ---
     private TextView targetLuxTextView;
     private TextView currentLuxTextView;
@@ -32,12 +31,11 @@ public class GameActivity extends AppCompatActivity {
     private TextView feedbackTextView;
     private Button startButton;
     private LinearLayout rootLayout;
-    // 🌟🌟🌟 Fine aggiunte 🌟🌟🌟
 
     // --- Variabili di Gioco ---
     private int targetLux;
     private final int MIN_LUX = 50;
-    private final int MAX_LUX = 2000;
+    private final int MAX_LUX = 1000;
     private final float TOLERANCE = 15f;
     private boolean isGameActive = false;
     private long startTime;
@@ -56,76 +54,7 @@ public class GameActivity extends AppCompatActivity {
         }
     };
 
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_game);
-
-        // 1. Inizializzazione delle View
-        targetLuxTextView = findViewById(R.id.targetLuxTextView);
-        currentLuxTextView = findViewById(R.id.currentLuxTextView);
-        timerTextView = findViewById(R.id.timerTextView);
-        feedbackTextView = findViewById(R.id.feedbackTextView);
-        startButton = findViewById(R.id.startButton);
-        rootLayout = findViewById(R.id.rootLayout);
-
-        // 2. Setup Sensore
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-
-        if (lightSensor == null) {
-            Toast.makeText(this, "Sensore di Luce non disponibile. Impossibile giocare.", Toast.LENGTH_LONG).show();
-            startButton.setEnabled(false);
-            return;
-        }
-
-        // 3. Listener del pulsante START
-        startButton.setOnClickListener(v -> startGame());
-
-        targetLuxTextView.setText("Target: -- lux");
-    }
-
-    private void startGame() {
-        if (isGameActive) {
-            stopGame(false);
-        }
-
-        // 1. Genera un nuovo target Lux
-        Random random = new Random();
-        targetLux = random.nextInt(MAX_LUX - MIN_LUX + 1) + MIN_LUX;
-
-        // 2. Resetta e avvia il Cronometro
-        startTime = System.currentTimeMillis();
-        timerHandler.post(timerRunnable);
-
-        // 3. Aggiorna l'UI
-        isGameActive = true;
-        targetLuxTextView.setText("TARGET: " + targetLux + " lux");
-        feedbackTextView.setText("Avvicinati al valore Lux nell'ambiente! (Tolleranza ±" + (int)TOLERANCE + ")");
-        startButton.setText("IN CORSO...");
-        startButton.setEnabled(false);
-        rootLayout.setBackgroundColor(Color.parseColor("#303030")); // Resetta colore di sfondo
-    }
-
-    private void stopGame(boolean win) {
-        isGameActive = false;
-        timerHandler.removeCallbacks(timerRunnable);
-        startButton.setEnabled(true);
-        startButton.setText("NUOVO ROUND");
-
-        if (win) {
-            long finalTimeMillis = System.currentTimeMillis() - startTime;//tempo impiegato
-            float finalSeconds = finalTimeMillis / 1000.0f;
-            Toast.makeText(this, "VITTORIA! Tempo: " + String.format("%.2fs", finalSeconds), Toast.LENGTH_LONG).show();
-            feedbackTextView.setText("🏆 VITTORIA! Tempo finale: " + String.format("%.2fs", finalSeconds) + "\nProva a battere il tuo record!");
-            rootLayout.setBackgroundColor(Color.parseColor("#4CAF50")); // Verde Vittoria
-        } else {
-            rootLayout.setBackgroundColor(Color.parseColor("#303030"));
-            feedbackTextView.setText("Round interrotto. Premi START per iniziare!");
-        }
-    }
-
+    // --- Sensor Listener ---
     private final SensorEventListener lightListener = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent event) {
@@ -145,18 +74,16 @@ public class GameActivity extends AppCompatActivity {
             // 2. Feedback Visivo (colore)
             float maxRange = MAX_LUX;
             float proximityFactor = Math.min(1.0f, diff / maxRange);
-
-            // Passaggio da Rosso (Lontano) a Giallo (Vicino)
             float hue = 60 * (1 - proximityFactor);
             int color = Color.HSVToColor(new float[]{hue, 1f, 0.7f});
-
             rootLayout.setBackgroundColor(color);
+
+            // 3. Feedback testuale
             if (diff < 50) {
                 feedbackTextView.setText("Sei quasi lì! Molto vicino all'obiettivo!");
             } else if (diff < 200) {
                 feedbackTextView.setText("Avanti! Sei nella zona calda!");
             } else {
-                // Messaggio di base
                 feedbackTextView.setText("Cambiando l'illuminazione esterna per raggiungere il target...");
             }
         }
@@ -165,8 +92,18 @@ public class GameActivity extends AppCompatActivity {
         public void onAccuracyChanged(Sensor sensor, int accuracy) {}
     };
 
+    // --- Ciclo di vita ---
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_game);
 
-    // --- Gestione Ciclo di Vita (Cruciale per i sensori) ---
+        initViews();
+        setupSensor();
+        setupStartButton();
+        targetLuxTextView.setText("Target: -- lux");
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -186,5 +123,67 @@ public class GameActivity extends AppCompatActivity {
             feedbackTextView.setText("Gioco in pausa.");
         }
         timerHandler.removeCallbacks(timerRunnable);
+    }
+
+    // --- Inizializzazioni ---
+    private void initViews() {
+        targetLuxTextView = findViewById(R.id.targetLuxTextView);
+        currentLuxTextView = findViewById(R.id.currentLuxTextView);
+        timerTextView = findViewById(R.id.timerTextView);
+        feedbackTextView = findViewById(R.id.feedbackTextView);
+        startButton = findViewById(R.id.startButton);
+        rootLayout = findViewById(R.id.rootLayout);
+    }
+
+    private void setupSensor() {
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+
+        if (lightSensor == null) {
+            Toast.makeText(this, "Sensore di Luce non disponibile. Impossibile giocare.", Toast.LENGTH_LONG).show();
+            startButton.setEnabled(false);
+        }
+    }
+
+    private void setupStartButton() {
+        startButton.setOnClickListener(v -> startGame());
+    }
+
+    // --- Logica Gioco ---
+    private void startGame() {
+        if (isGameActive) {
+            stopGame(false);
+        }
+
+        Random random = new Random();
+        targetLux = random.nextInt(MAX_LUX - MIN_LUX + 1) + MIN_LUX;
+
+        startTime = System.currentTimeMillis();
+        timerHandler.post(timerRunnable);
+
+        isGameActive = true;
+        targetLuxTextView.setText("TARGET: " + targetLux + " lux");
+        feedbackTextView.setText("Avvicinati al valore Lux nell'ambiente! (Tolleranza ±" + (int)TOLERANCE + ")");
+        startButton.setText("IN CORSO...");
+        startButton.setEnabled(false);
+        rootLayout.setBackgroundColor(Color.parseColor("#303030"));
+    }
+
+    private void stopGame(boolean win) {
+        isGameActive = false;
+        timerHandler.removeCallbacks(timerRunnable);
+        startButton.setEnabled(true);
+        startButton.setText("NUOVO ROUND");
+
+        if (win) {
+            long finalTimeMillis = System.currentTimeMillis() - startTime;
+            float finalSeconds = finalTimeMillis / 1000.0f;
+            Toast.makeText(this, "VITTORIA! Tempo: " + String.format("%.2fs", finalSeconds), Toast.LENGTH_LONG).show();
+            feedbackTextView.setText("🏆 VITTORIA! Tempo finale: " + String.format("%.2fs", finalSeconds) + "\nProva a battere il tuo record!");
+            rootLayout.setBackgroundColor(Color.parseColor("#4CAF50"));
+        } else {
+            rootLayout.setBackgroundColor(Color.parseColor("#303030"));
+            feedbackTextView.setText("Round interrotto. Premi START per iniziare!");
+        }
     }
 }
